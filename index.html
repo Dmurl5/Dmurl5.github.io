@@ -56,8 +56,8 @@
                         var sevenDayAverage = sevenDayTotal / 7;
 
                         // Build two divs to display the calculated average and the average required to trigger restrictions
-                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, sevenDayAverage);
-                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, averageToMeetRestriction);
+                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, Math.floor(sevenDayAverage));
+                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, Math.floor(averageToMeetRestriction));
 
                         // Build a message div to tell the user if NC meets or does not meet case count to trigger restrictions
                         var isRestricted = sevenDayAverage >= averageToMeetRestriction;
