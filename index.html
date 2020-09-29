@@ -1,0 +1,87 @@
+  <!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="data:;base64,=">
+        <title> NC Test Data </title>
+        <style>
+            #responseTarget {
+                font-size: 16px;
+            }
+            .loading {
+                color: #3737ce;
+            }
+            .redText {
+                color: #d40000;
+            }
+            .greenText {
+                color: #00b11e;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            // Set up some initial variables - adjust these to adjust the entire system
+
+            var population = 10490000; // current population of NC, when this file was written
+            var casesMetric = 100000; // number used to compare cases against - i.e. 15 cases per 100000, 100000 = casesMetric
+            var ratio = population / casesMetric; // ratio between total pop and the casesMetric
+            var casesPer = 15; // total cases per casesMetric to meet the threshold - i.e. 15 cases per 100000, 15 = casesPer
+            var averageToMeetRestriction = casesPer * ratio; // amount of cases, on average, needed to meet restrictions
+
+            var xhr = new XMLHttpRequest();
+
+            // Returns a div with some text in it (normalText) with some emphasized text at the end in a <b> tag (bText)
+            const buildDivWithB = (normalText, bText) => {
+                var div = document.createElement("div");
+                var b = document.createElement("b");
+                b.innerText = bText;
+                div.innerHTML = normalText;
+                div.appendChild(b);
+                return div;
+            };
+
+            xhr.onreadystatechange = function () {
+                if (this.readyState != 4) return;
+
+                if (this.status == 200) {
+                    var data = JSON.parse(this.responseText);
+                    if (data && data.length) {
+                        var lastSevenDays = data.slice(0, 7);
+                        var sevenDayTotal = 0;
+                        lastSevenDays.map(dayObject => {
+                            dayObject.positiveIncrease ? sevenDayTotal = sevenDayTotal + dayObject.positiveIncrease : "";
+                        });
+                        var sevenDayAverage = sevenDayTotal / 7;
+
+                        // Build two divs to display the calculated average and the average required to trigger restrictions
+                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, sevenDayAverage);
+                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, averageToMeetRestriction);
+
+                        // Build a message div to tell the user if NC meets or does not meet case count to trigger restrictions
+                        var isRestricted = sevenDayAverage >= averageToMeetRestriction;
+                        var messageDiv = document.createElement("div");
+                        messageDiv.className = isRestricted ? 'redText' : 'greenText';
+                        messageDiv.innerText = isRestricted ? 'North Carolina meets restriction guidelines' : 'North Carolina does not meet restriction guidelines';
+
+                        // Append all divs to the HTML element on the page, clearing the loading indicator
+                        var target = document.getElementById("responseTarget");
+                        target.innerHTML = "";
+                        [averageDiv, requiredDiv, messageDiv].map(el => target.appendChild(el));
+                    }
+                }
+
+                // end of state change: it can be after some time (async)
+            };
+
+            // COVID tracking API to get NC's historic data.
+            xhr.open('GET', "https://api.covidtracking.com/v1/states/nc/daily.json", true);
+            xhr.send();
+        </script>
+
+        <div id="responseTarget">
+            <span class="loading-text">Loading...</span>
+        </div>
+    </body>
+</html>
