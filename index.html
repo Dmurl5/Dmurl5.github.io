@@ -45,24 +45,6 @@
 
             var xhr = new XMLHttpRequest();
 
-            // Returns a div with some text in it (normalText) with some emphasized text at the end in a <b> tag (bText)
-            const buildDivWithB = (normalText, bText) => {
-                var div = document.createElement("div");
-                var b = document.createElement("b");
-                b.innerText = bText;
-                div.innerHTML = normalText;
-                div.appendChild(b);
-                return div;
-            };
-
-            // Returns a div. If isRed = true, div is colored red and has the redText string as its inner text. If false, it will be colored green and use greenText
-            const buildColoredDiv = (isRed, redText, greenText) => {
-                var coloredDiv = document.createElement("div");
-                coloredDiv.className = isRed ? 'redColor' : 'greenColor';
-                coloredDiv.innerText = isRed ? redText : greenText;
-                return coloredDiv;
-            };
-
             xhr.onreadystatechange = function () {
                 if (this.readyState != 4) return;
 
@@ -77,21 +59,24 @@
                         });
                         var sevenDayAverage = sevenDayTotal / 7;
 
-                        // Build a div to show today's positive net increase as well as a message on whether or not it's over the average needed to trigger restrictions
-                        var todaysDiv = buildDivWithB(`Today's net increase in positive cases: `, today.positiveIncrease);
-                        var todaysMessageDiv = buildColoredDiv(today.positiveIncrease > averageToMeetRestriction, `Today's positive is over the average required to trigger restrictions`, `Today's positive is under the average required to trigger restrictions`);
+                        // Determine if today is above the average required to trigger restrictions
+                        var isTodayHigh = today.positiveIncrease > averageToMeetRestriction;
+                        var todayMessage = isTodayHigh ? `Today's positive is over the average required to trigger restrictions` : `Today's positive is under the average required to trigger restrictions`;
 
-                        // Build two divs to display the calculated 7 day average and the average required to trigger restrictions
-                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, sevenDayAverage);
-                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, averageToMeetRestriction);
+                        // Determine if the seven days prior, counting today, average above the average required to trigger restrictions
+                        var isSevenDayHigh = sevenDayAverage >= averageToMeetRestriction;
+                        var sevenDayMessage = isSevenDayHigh ? 'North Carolina meets restriction guidelines for the past 7 days.' : 'North Carolina does not meet restriction guidelines  for the past 7 days.'
+                        
+                        // Build the HTML using template strings
+                        var displayHTML = `
+<div>Today's net increase in positive cases: <b>${today.positiveIncrease}</b></div>
+<div class="${isTodayHigh ? 'redColor' : 'greenColor'}">${todayMessage}</div>
+<div>The seven day average of new positive cases is <b>${sevenDayAverage}</b></div>
+<div>The average to meet restrictions is <b>${averageToMeetRestriction}</b></div>
+<div class="${isSevenDayHigh ? 'redColor' : 'greenColor'}">${sevenDayMessage}</div>`;
 
-                        // Build a message div to tell the user if NC meets or does not meet case count to trigger restrictions
-                        var messageDiv = buildColoredDiv(sevenDayAverage >= averageToMeetRestriction, 'North Carolina meets restriction guidelines for the past 7 days.', 'North Carolina does not meet restriction guidelines  for the past 7 days.');
-
-                        // Append all divs to the HTML element on the page, clearing the loading indicator
-                        var target = document.getElementById("responseTarget");
-                        target.innerHTML = "";
-                        [todaysDiv, todaysMessageDiv, averageDiv, requiredDiv, messageDiv].map(el => target.appendChild(el));
+                        // Inject the HTML into the target element
+                        document.getElementById("responseTarget").innerHTML = displayHTML;
                     }
                 }
 
