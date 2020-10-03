@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
     <head>
         <meta charset="utf-8">
@@ -6,16 +6,26 @@
         <link rel="icon" href="data:;base64,=">
         <title> NC Test Data </title>
         <style>
+            html {
+                height: 100%;
+                background-color: #171717;
+                font-family: system-ui;
+                font-size: 20px;
+            }
             #responseTarget {
-                font-size: 16px;
+                display: inline-block;
+                background-color: #2f2f2f;
+                padding: 5px;
+                color: #eee;
+                border-radius: 5px;
             }
             .loading {
                 color: #3737ce;
             }
-            .redText {
+            .redColor {
                 color: #d40000;
             }
-            .greenText {
+            .greenColor {
                 color: #00b11e;
             }
         </style>
@@ -42,6 +52,14 @@
                 return div;
             };
 
+            // Returns a div. If isRed = true, div is colored red and has the redText string as its inner text. If false, it will be colored green and use greenText
+            const buildColoredDiv = (isRed, redText, greenText) => {
+                var coloredDiv = document.createElement("div");
+                coloredDiv.className = isRed ? 'redColor' : 'greenColor';
+                coloredDiv.innerText = isRed ? redText : greenText;
+                return coloredDiv;
+            };
+
             xhr.onreadystatechange = function () {
                 if (this.readyState != 4) return;
 
@@ -49,26 +67,28 @@
                     var data = JSON.parse(this.responseText);
                     if (data && data.length) {
                         var lastSevenDays = data.slice(0, 7);
+                        var today = lastSevenDays[0];
                         var sevenDayTotal = 0;
                         lastSevenDays.map(dayObject => {
                             dayObject.positiveIncrease ? sevenDayTotal = sevenDayTotal + dayObject.positiveIncrease : "";
                         });
                         var sevenDayAverage = sevenDayTotal / 7;
 
-                        // Build two divs to display the calculated average and the average required to trigger restrictions
-                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, Math.floor(sevenDayAverage));
-                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, Math.floor(averageToMeetRestriction));
+                        // Build a div to show today's positive net increase as well as a message on whether or not it's over the average needed to trigger restrictions
+                        var todaysDiv = buildDivWithB(`Today's net increase in positive cases: `, today.positiveIncrease);
+                        var todaysMessageDiv = buildColoredDiv(today.positiveIncrease > averageToMeetRestriction, `Today's positive is over the average required to trigger restrictions`, `Today's positive is under the average required to trigger restrictions`);
+
+                        // Build two divs to display the calculated 7 day average and the average required to trigger restrictions
+                        var averageDiv = buildDivWithB(`The seven day average of new positive cases is `, sevenDayAverage);
+                        var requiredDiv = buildDivWithB(`The average to meet restrictions is `, averageToMeetRestriction);
 
                         // Build a message div to tell the user if NC meets or does not meet case count to trigger restrictions
-                        var isRestricted = sevenDayAverage >= averageToMeetRestriction;
-                        var messageDiv = document.createElement("div");
-                        messageDiv.className = isRestricted ? 'redText' : 'greenText';
-                        messageDiv.innerText = isRestricted ? 'North Carolina meets restriction guidelines' : 'North Carolina does not meet restriction guidelines';
+                        var messageDiv = buildColoredDiv(sevenDayAverage >= averageToMeetRestriction, 'North Carolina meets restriction guidelines for the past 7 days.', 'North Carolina does not meet restriction guidelines  for the past 7 days.');
 
                         // Append all divs to the HTML element on the page, clearing the loading indicator
                         var target = document.getElementById("responseTarget");
                         target.innerHTML = "";
-                        [averageDiv, requiredDiv, messageDiv].map(el => target.appendChild(el));
+                        [todaysDiv, todaysMessageDiv, averageDiv, requiredDiv, messageDiv].map(el => target.appendChild(el));
                     }
                 }
 
