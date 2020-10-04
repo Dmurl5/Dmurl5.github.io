@@ -71,7 +71,7 @@
                         var displayHTML = `
 <div>Today's net increase in positive cases: <b>${today.positiveIncrease}</b></div>
 <div class="${isTodayHigh ? 'redColor' : 'greenColor'}">${todayMessage}</div>
-<div>The seven day average of new positive cases is <b>${sevenDayAverage}</b></div>
+<div>The seven day average of new positive cases is <b>${Math.floor(sevenDayAverage)}</b></div>
 <div>The average to meet restrictions is <b>${averageToMeetRestriction}</b></div>
 <div class="${isSevenDayHigh ? 'redColor' : 'greenColor'}">${sevenDayMessage}</div>`;
 
