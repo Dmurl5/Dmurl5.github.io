@@ -121,10 +121,11 @@
             // These properties change during runtime, and have their values reinitialized in the reset() function
             let snakeColor = "#0ba99f";
             let currentFood; // the current food piece on the canvas
-            let velocity = { x: 0, y: gameSpeed, direction: directions.down }; // tracks the x and y velocity of the snake, as well as the head's current direction (could be derived but easier to just store it)
-            let snake = [{x: 230, y: 230, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
+            let direction = directions.down; // the current direction of the snake
+            let skipNextPopCycle = false; // if true, food has just been consumed, and the next "pop" in movement (removing the tail) should be skipped
+            let snake = [{x: 240, y: 240, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
             let gameOver = false; // if true, the user has lost - either by colliding with the edge or its own tail
-            let velocityQueue = []; // queue for velocity changes to only allow one velocity shift per game cycle
+            let directionQueue = []; // queue for direction changes to only allow one direction shift per game cycle
             let currentScore = 0;
 
             // These properties change, but aren't reinitialized in reset() due to them persisting between games
@@ -154,28 +155,27 @@
                 }
             };
 
-            /** Functions for adding to the velocity queue when a direction is triggered (Arrow keys or the arrows on the page) */
+            /** Functions for adding to the direction queue when a direction is triggered (Arrow keys or the arrows on the page) */
             function onLeft() {
-                addToVelocityQueue(directions.left);
+                addToDirectionQueue(directions.left);
             }
             function onUp() {
-                addToVelocityQueue(directions.up);
+                addToDirectionQueue(directions.up);
             }
             function onRight() {
-                addToVelocityQueue(directions.right);
+                addToDirectionQueue(directions.right);
             }
             function onDown() {
-                addToVelocityQueue(directions.down);
+                addToDirectionQueue(directions.down);
             }
 
             /** Sets properties that can change over the course of the game to their initial values */
             function reset() {
                 snakeColor = "#0ba99f";
                 currentFood = undefined; // the current food piece on the canvas
-                velocity = { x: 0, y: gameSpeed, direction: directions.down }; // tracks the x and y velocity of the snake, as well as the head's current direction (could be derived but easier to just store it)
-                snake = [{x: 290, y: 290, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
+                snake = [{x: 240, y: 240, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
                 gameOver = false; // if true, the user has lost - either by colliding with the edge or its own tail
-                velocityQueue = []; // queue for velocity changes to only allow one velocity shift per game cycle
+                directionQueue = []; // queue for direction changes to only allow one direction shift per game cycle
                 currentScore = 0;
                 updateCurrentScore(currentScore);
             }
@@ -186,23 +186,22 @@
                 // Give a small timeout before the game starts to allow for users to adjust between the play click and the game starting
                 setTimeout(() => {
                     play();
-                }, 50);
+                }, 60);
             }
 
             /**
                 TODO's
                     (1) Make speed configurable - original 50 is too high for normal players
-                    (2) Deploy to github pages
+                    (2) Make styles of canvas, wrapping and info elements, and in-game elements responsive to mobile
             */
 
             // Main game function. Calls itself recursively to run the game.
             function play() {
-                gameOver = isGameOver(); // check if the user has lost whenever play() is called
+                moveSnake(snake);
                 clear(); // clear the previous game state
                 // if the game isn't over, perform game actions like moving the snake and checking for food
                 if (!gameOver) {
-                    checkVelocity();
-                    snake = moveSnake(snake);
+                    checkDirection();
                     checkFood();
                 }
                 drawSnake(snake);
@@ -226,20 +225,17 @@
                 document.getElementById("currentScore").innerText = currentScore;
             }
 
-            /** Returns true if the game is over, because the user hit a side or a snake tail piece. consumeFood() can also set gameOver = true if a new snake piece can't be added */
-            function isGameOver() {
-                let snakeHead = snake[0];
-
+            /** Returns true if the game is over, because the user hit a side or a snake tail piece.
+            *   @param {Object} snakeHead - a piece of a snake, usually the head, to check if it causes a game over. 
+            */
+            function isGameOver(snakeHead) {
                 // Check for any movement-based game over states. If any are found, log the state of the loss.
                 if (isPieceOffBoard(snakeHead)) {
                     console.log(`Lost from hitting the board's edge. Snake's head position: ${Object.values(snakeHead)}`);
-                    console.log(`Velocity: ${Object.values(velocity)}`);
                     snakeColor = gameOverColor;
                     return true;
                 } else if (doesPieceOverlapWithSnake(snakeHead, false)) {
-                    console.log(`Lost from the snake's head hitting a tail piece. Snake:`);
-                    console.table(snake);
-                    console.log(`Velocity: ${Object.values(velocity)}`);
+                    console.log(`Lost from the snake's head hitting a tail piece. Snake's head position: ${Object.values(snakeHead)}`);
                     snakeColor = gameOverColor;
                     return true;
                 } else {
@@ -277,37 +273,8 @@
                     // Update the current score
                     updateCurrentScore(currentScore + pointsPerFood);
 
-                    // Add a new piece to the snake. Adds to the tail, away from its direction.
-                    let lastPiece = snake[snake.length - 1];
-
-                    // Determine the direction to place the new square
-                    let directionToPlace = lastPiece.direction === directions.up ? directions.down :
-                                             lastPiece.direction === directions.down ? directions.up :
-                                             lastPiece.direction === directions.right ? directions.left :
-                                             lastPiece.direction === directions.left ? directions.right : '';
-
-                    // If we can determine a direction to place the new piece, build a new square in the opposite direction of the terminal piece's direction
-                    if (directionToPlace) {
-                        let potentialPiece = {x: 0, y: 0};
-                        let axis = isDirectionOnXAxis(directionToPlace) ? "x" : "y";
-                        let isNegative = isNegativeDirection(directionToPlace);
-                        let newAxisValue = isNegative ? -snakeSideLength : snakeSideLength;
-                        let offset = isNegative ? -1 : 1; // The new potential piece should be offset by 1 to prevent collisions of the head and the next piece
-                        potentialPiece[axis] = newAxisValue;
-                        potentialPiece.x = potentialPiece.x + lastPiece.x + offset;
-                        potentialPiece.y = potentialPiece.y + lastPiece.y + offset;
-
-                        // Determine if the new piece would land on a square that would break the game. If not, push the piece onto the snake.
-                        if (!(isPieceOffBoard(potentialPiece) || doesPieceOverlapWithSnake(potentialPiece, true))) {
-                            snake.push(potentialPiece);
-                            return;
-                        }
-                    } 
-
-                    // if a new piece can't be placed for whatever reason, it's game over
-                    gameOver = true;
-                    snakeColor = gameOverColor;
-                    return;
+                    // Indicate that the next "pop" cycle of movement (removing the tail and adding a head) should be skipped, adding a head without removing a tail
+                    skipNextPopCycle = true;
                 }
             }
 
@@ -358,9 +325,14 @@
                 };
             }
 
-            /** Will return a random number between 0 and the canvas's playable area. Canvas should be square or this quick function won't work */
+            /** Will return a random number between 0 and the canvas's playable area, that can be multiplied by the snake's side length to ensure a "grid" like flow.
+            Canvas should be square or this quick function won't work */
             function getRandomCoordinate() {
-                return Math.floor(Math.random() * (mainCanvas.height - snakeSideLength));
+                let canvasSide = mainCanvas.height;
+                let maxValue = Math.floor(canvasSide / snakeSideLength);
+                // One is the minimum - ensuring food is never added directly on the edge for a slightly more fair experience
+                let randomInteger = Math.floor(Math.random() * (maxValue - 1) + 1); 
+                return randomInteger * snakeSideLength;
             }
 
             /** @returns {boolean} true if two snake pieces, a and b, overlap */
@@ -381,65 +353,63 @@
                 mainCanvasContext.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
             }
 
-            /** Moves the snake by the gameSpeed and velocity */
+            /** Moves the snake by creating a new head and removing the tail, "shifting" the head forward giving an illusion of movement */
             function moveSnake(snake) {
-                let snakeHead = snake[0];
-                let prevPiece;
-                return snake.map((snakePiece, index) => {
-                    // If we're on the snake head, move the piece by the velocity. Otherwise, move each piece to the previous piece's old position
-                    if (index === 0) {
-                        prevPiece = Object.assign({}, snakePiece); // copy the snake piece to use it to move the next piece, without updating the copy when we update this piece
-                        snakePiece = { // Move the snake head by the velocity
-                            x: snakePiece.x + velocity.x,
-                            y: snakePiece.y + velocity.y,
-                            direction: velocity.direction
-                        };
-                    } else {
-                        let pieceClone = Object.assign({}, snakePiece); // copy the snake piece to use it to move the next piece, without updating the copy when we update this piece
-                        snakePiece = prevPiece; // set this piece's position equal to the previous piece's position
-                        prevPiece = pieceClone;
-                    }
+                // Create a new snake head by cloning the current snake head
+                let newSnakeHead = Object.assign({}, snake[0]);
 
-                    return snakePiece;
-                });
+                // Determine the axis of "movement" to add the new head to, and where to add the new piece to based on the size of snake pieces
+                let axis = isDirectionOnXAxis(direction) ? "x" : "y";
+                let isNegative = isNegativeDirection(direction);
+                let newAxisValue = isNegative ? -snakeSideLength : snakeSideLength;
+                newSnakeHead[axis] = newSnakeHead[axis] + newAxisValue;
+
+                // If the movement would cause a game over, set that property and do not perform the move
+                if (isGameOver(newSnakeHead)) {
+                    gameOver = true;
+                } else { // otherwise, perform the movement
+                    // Set this piece's direction to the direction of movement during creation. Used to create tail pieces on food consumption
+                    newSnakeHead.direction = direction;
+
+                    // Add the new head to simulate movement
+                    snake.unshift(newSnakeHead);
+
+                    // If skipNextPopCycle = false, remove the tail to simulate true movement. If true, food has just been eaten, so skipping the pop adds a piece
+                    // Set to false if true so that skipping only happens once per food eaten
+                    !skipNextPopCycle ? snake.pop() : skipNextPopCycle = false;      
+                }   
             }
 
-            /** Given a direction (up, right, down, left) set the velocity for the snake based on that direction */
-            function setVelocity(direction) {
-                let velocityVal = isNegativeDirection(direction) ? -gameSpeed : gameSpeed; // determine the value to set the directional velocity to - negative game speed if a negative direction on an axis, positive if not
-                let isX = isDirectionOnXAxis(direction) // determine if the direction is on the x axis - useful to shorten the velocity = {...} statement below
-                velocity = {
-                    x: isX ? velocityVal : 0,
-                    y: !isX ? velocityVal : 0,
-                    direction: direction
-                };
+            /** Given a new direction (up, right, down, left) set the snake's direction */
+            function setDirection(newDirection) {
+                direction = newDirection;
             }
 
-            /** If the velocity queue has entries, pulls the first one off the queue and sets the velocity with it */
-            function checkVelocity() {
-                if (velocityQueue.length > 0) {
-                    // Don't allow the snake to shift directions backwards - check if hte potential velocity would reverse directions and only set it if not
-                    let potentialVelocity = velocityQueue.shift();
-                    switch(potentialVelocity) {
+            /** If the direction queue has entries, pulls the first one off the queue and sets the direction with it */
+            function checkDirection() {
+                if (directionQueue.length > 0) {
+                    // Don't allow the snake to shift directions backwards - check if the potential direction would reverse directions and only set it if not
+                    let potentialDirection = directionQueue.shift();
+                    switch(potentialDirection) {
                         case directions.left: // left - set if not currently going right
-                            velocity.direction !== directions.right ? setVelocity(potentialVelocity) : "";
+                            direction !== directions.right ? setDirection(potentialDirection) : "";
                             break;
                         case directions.up: // up - set if not currently going down
-                            velocity.direction !== directions.down ? setVelocity(potentialVelocity) : "";
+                            direction !== directions.down ? setDirection(potentialDirection) : "";
                             break;
                         case directions.right: // right - set if not currently going left
-                            velocity.direction !== directions.left ? setVelocity(potentialVelocity) : "";
+                            direction !== directions.left ? setDirection(potentialDirection) : "";
                             break;
                         case directions.down: // down - set if not currently going up
-                            velocity.direction !== directions.up ? setVelocity(potentialVelocity) : "";
+                            direction !== directions.up ? setDirection(potentialDirection) : "";
                             break;
                     }
                 }
             }
 
-            /** Add a direction to the velocity queue. Queue is used to prevent multiple velocity changes in a single cycle from breaking the game. */
-            function addToVelocityQueue(direction) {
-                velocityQueue.push(direction);
+            /** Add a direction to the direction queue. Queue is used to prevent multiple direction changes in a single cycle from breaking the game. */
+            function addToDirectionQueue(direction) {
+                directionQueue.push(direction);
             }
 
             /** @returns {boolean} true if a given direction is on the X axis */
