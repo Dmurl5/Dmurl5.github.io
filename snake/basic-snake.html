@@ -91,18 +91,22 @@
             <canvas id="mainCanvas" width="500" height="500"></canvas>
         </div>
         <div class="info-display">
-            <button id="playButton" onclick="setupAndPlay()">Play</button>
+            <button id="playButton" onclick="setup()">Play</button>
             <h4>Curent Score: <span class="score-display" id="currentScore">0</span></h4>
             <h4>High Score: <span class="score-display" id="highScore">0</span></h4>
             <div class="arrows">
-                <div class="top"><span></span><span onclick="onUp()" class="arrow">&#8593;</span><span></span></div>
-                <div class="middle"><span onclick="onLeft()" class="arrow">&#8592;</span><span></span><span onclick="onRight()" class="arrow">&#8594;</span></div>
-                <div class="bottom"><span></span><span onclick="onDown()" class="arrow">&#8595;</span><span></span></div>
+                <div class="top"><span></span><span onclick="addDirection(directions.up)" class="arrow">&#8593;</span><span></span></div>
+                <div class="middle"><span onclick="addDirection(directions.left)" class="arrow">&#8592;</span><span></span><span onclick="addDirection(directions.right)" class="arrow">&#8594;</span></div>
+                <div class="bottom"><span></span><span onclick="addDirection(directions.down)" class="arrow">&#8595;</span><span></span></div>
             </div>
         </div>
 
         <script>
-            /* HTML Canvas and contexts - defined with types for easier use in IDE's */
+            /** TODO's
+                    (1) Make speed configurable - original 50 is too high for normal players
+                    (2) Make styles of canvas, wrapping and info elements, and in-game elements responsive to mobile */
+
+
             /** @type {HTMLCanvasElement} the canvas used to run and interact with the game */
             const mainCanvas = document.getElementById("mainCanvas");
 
@@ -110,23 +114,22 @@
             const mainCanvasContext = mainCanvas.getContext("2d");
 
             // These properties don't change during runtime and can be set as "const"
-            const gameSpeed = 15; // indicates how fast the snake moves across the canvas, raise to increase speed
             const gameOverColor = "red"; // color to draw the snake if a game over is encountered
-            const snakeSideLength = 15;
+            const pieceLength = 15; // the length of a single snake or food piece
             const pointsPerFood = 10; // how many points you earn for each food item consumed
-            const canvasColor = "#2f2f2f";
+            const canvasColor = "#2f2f2f"; // should match the CSS variable --canvas-bg-color
             const foodColor = "#c614d0";
             const directions = {up: "up", right: "right", down: "down", left: "left"}; 
 
-            // These properties change during runtime, and have their values reinitialized in the reset() function
-            let snakeColor = "#0ba99f";
-            let currentFood;
-            let direction = directions.down; // the current direction of the snake
-            let skipNextPopCycle = false; // if true, food has just been consumed, and the next "pop" in movement (removing the tail) should be skipped
-            let snake = [{x: 240, y: 240, direction: directions.down}]; // the actual snake - contains all snake pieces. first piece, snake[0], is the current head
-            let gameOver = false; // if true, the user has lost - either by colliding with the edge or its own tail
-            let directionQueue = []; // queue for direction changes to only allow one direction shift per game cycle
-            let currentScore = 0;
+            // These properties change during runtime, and have their values initialized in the reset() function
+            let snakeColor; // the snake's color - if gameOver, set to gameOverColor
+            let currentFood; // the current food's coordinates
+            let direction; // the current direction of the snake
+            let skipNextPopCycle; // if true, food has just been consumed, and the next "pop" in movement (removing the tail) should be skipped
+            let snake; // the actual snake - contains all snake pieces. first piece, snake[0], is the current head
+            let gameOver; // if true, the user has lost - either by colliding with the edge or its own tail
+            let directionQueue; // queue for direction changes to only allow one direction shift per game cycle
+            let currentScore; // the current score of the running game
 
             // These properties change, but aren't reinitialized in reset() due to them persisting between games
             let highScore = 0;
@@ -136,91 +139,79 @@
                 switch (e.keyCode) {
                     // Enter key - restarts the game
                     case 13:
-                        setupAndPlay();
+                        setup();
                         break;
 
                     // Arrow key cases - controls the snake in the game
                     case 37: // left arrow
-                        onLeft();
+                        addDirection(directions.left);
                         break;
                     case 38: // up arrow
-                        onUp();
+                        addDirection(directions.up);
                         break;
                     case 39: // right arrow
-                        onRight();
+                        addDirection(directions.right);
                         break;
                     case 40: // down arrow
-                        onDown();
+                        addDirection(directions.down);
                         break;
                 }
             };
-
-            /** Functions for adding to the direction queue when a direction is triggered (Arrow keys or the arrows on the page) */
-            function onLeft() {
-                addToDirectionQueue(directions.left);
-            }
-            function onUp() {
-                addToDirectionQueue(directions.up);
-            }
-            function onRight() {
-                addToDirectionQueue(directions.right);
-            }
-            function onDown() {
-                addToDirectionQueue(directions.down);
-            }
 
             /** Sets properties that can change over the course of the game to their initial values */
             function reset() {
                 snakeColor = "#0ba99f";
                 currentFood = undefined; 
-                snake = [{x: 240, y: 240, direction: directions.down}]; 
+                snake = [{x: 240, y: 240}]; 
                 gameOver = false;
                 directionQueue = []; 
+                direction = directions.down;
                 skipNextPopCycle = false;
                 currentScore = 0;
                 updateCurrentScore(currentScore); // whenever reset is called, update the DOM current score element to ensure it displays the initial value
             }
 
-            /** Resets game values and calls play(). Triggered by the user clicking the Play button. */
-            function setupAndPlay() {
+            /** Resets game values and calls play(). Called by the user starting the game. */
+            function setup() {
+                // Set all properties that change during runtime to initial values
                 reset();
-                // Give a small timeout before the game starts to allow for users to adjust between the play click and the game starting
-                setTimeout(() => {
-                    play();
-                }, 60);
+                // Start the game cycle
+                tick(); 
             }
 
-            /**
-                TODO's
-                    (1) Make speed configurable - original 50 is too high for normal players
-                    (2) Make styles of canvas, wrapping and info elements, and in-game elements responsive to mobile
-            */
+            /** Calls play() if the game is not over. Called from play() and setup(). Creates a game cycle that runs every X milliseconds */
+            function tick() {
+                !gameOver ? setTimeout(play, 60) : "";
+            }
 
             // Main game function. Calls itself recursively to run the game.
             function play() {
-                moveSnake(snake);
+                // Move the snake first - this will check if the movement causes a game over.
+                moveSnake();
+                // After moving, clear the board - which simply redraws the canvas without the snake
                 clear(); 
                 // if the game isn't over, perform game actions like moving the snake and checking for food
                 if (!gameOver) {
                     checkDirection();
                     checkFood();
                 }
-                drawSnake(snake);
-                if (gameOver) {
-                    if (currentScore > highScore) {
-                        updateHighScore(currentScore);
-                    }                    
+                // Draw the snake. If gameOver, will just draw the last snake but in the gameOverColor
+                drawSnake();
+                // Is the game is over and a new high score is reached, updated it
+                if (gameOver && currentScore > highScore) {
+                    updateHighScore(currentScore);                    
                 }
-                setTimeout(() => !gameOver ? play() : '', 60); // basically a tick(), redrawing the game canvas every X milliseconds. will not redraw if the game is over
+                // Call tick() to continue game cycle if game is not over
+                tick();
             }
 
-            /** Given a score, update the highScore and update the DOM element displaying it */
+            /** @param {number} score - updates the high score and display element */
             function updateHighScore(score) {
                 highScore = score;
                 document.getElementById("highScore").innerText = highScore;
             }
 
-            /** Given a score, update the currentScore and update the DOM element displaying it */
+            /** @param {number} score - updates the current score and display element */
             function updateCurrentScore(score) {
                 currentScore = score;
                 document.getElementById("currentScore").innerText = currentScore;
@@ -246,8 +237,8 @@
 
             /** @returns {boolean} true if a given piece is off the board in either x or y axis */
             function isPieceOffBoard(piece) {
-                let offBoard = piece.x < 0 || (piece.x + snakeSideLength) > mainCanvas.width; // check for off board in the x direction
-                offBoard = offBoard || (piece.y < 0 || (piece.y + snakeSideLength) > mainCanvas.height); // check for off board in the y direction
+                let offBoard = piece.x < 0 || (piece.x + pieceLength) > mainCanvas.width; // check for off board in the x direction
+                offBoard = offBoard || (piece.y < 0 || (piece.y + pieceLength) > mainCanvas.height); // check for off board in the y direction
                 return offBoard;
             }
 
@@ -302,8 +293,8 @@
             /** Given a piece, check if it overlaps the snake. Will only check the head piece if checkHead === true. */
             function doesPieceOverlapWithSnake(piece, checkHead) {
                 // Cache where the piece ends on both axis so it doesn't have to be calculated on each iteration
-                let pieceXEnd = piece.x + snakeSideLength;
-                let pieceYEnd = piece.y + snakeSideLength;
+                let pieceXEnd = piece.x + pieceLength;
+                let pieceYEnd = piece.y + pieceLength;
 
                 let doesOverlap = false;
                 snake.find((snakePiece, index) => {
@@ -329,20 +320,22 @@
             /** Will return a random number between 0 and the canvas's playable area, that can be multiplied by the snake's side length to ensure a "grid" like flow. Canvas should be square or this quick function won't work */
             function getRandomCoordinate() {
                 let canvasSide = mainCanvas.height;
-                let maxValue = Math.floor(canvasSide / snakeSideLength);
+                let maxValue = Math.floor(canvasSide / pieceLength);
                 // Returns a random integer between 1 and the max value
                 let randomInteger = Math.floor(Math.random() * (maxValue - 1) + 1); 
-                return randomInteger * snakeSideLength; // return the random integer multiplied by the snake side length, returning a random coordinate that always lines up with other snake pieces in the canvas
+                return randomInteger * pieceLength; // return the random integer multiplied by the snake side length, returning a random coordinate that always lines up with other snake pieces in the canvas
             }
 
-            /** @returns {boolean} true if two snake pieces, a and b, overlap */
+            /** Given two snake pieces (a and b) containing x and y coordinates, return true if they overlap
+            * @returns {boolean}
+            */
             function doPiecesOverlap(a, b) {
                 // Will be true if the pieces have no overlap at all, because if any of the following conditions are true then at least one of a's sides are outside b's sides in a way that ensures no overlap can exist
                 let isNoOverlap = (
-                    a.x >= (b.x + snakeSideLength) || // a's left (x) is to the right of b's right edge (x + length)
-                    a.y >= (b.y + snakeSideLength) || // a's top (y) is below b's bottom edge (y + length)
-                    (a.x + snakeSideLength) <= b.x || // a's right is to the left of b's left edge
-                    (a.y + snakeSideLength) <= b.y    // a's bottom is above b's top edge
+                    a.x >= (b.x + pieceLength) || // a's left (x) is to the right of b's right edge (x + length)
+                    a.y >= (b.y + pieceLength) || // a's top (y) is below b's bottom edge (y + length)
+                    (a.x + pieceLength) <= b.x || // a's right is to the left of b's left edge
+                    (a.y + pieceLength) <= b.y    // a's bottom is above b's top edge
                 );
                 return !isNoOverlap; // return the inverse so true will be returned if isNoOverlap = false, as that indicates there is overlap and the function's name implies that true should be returned if no overlap
             }
@@ -354,23 +347,20 @@
             }
 
             /** Moves the snake by creating a new head and removing the tail, "shifting" the head forward giving an illusion of movement */
-            function moveSnake(snake) {
+            function moveSnake() {
                 // Create a new snake head by cloning the current snake head
                 let newSnakeHead = Object.assign({}, snake[0]);
 
                 // Determine the axis of "movement" to add the new head to, and where to add the new piece to based on the size of snake pieces
                 let axis = isDirectionOnXAxis(direction) ? "x" : "y";
                 let isNegative = isNegativeDirection(direction);
-                let newAxisValue = isNegative ? -snakeSideLength : snakeSideLength;
+                let newAxisValue = isNegative ? -pieceLength : pieceLength;
                 newSnakeHead[axis] = newSnakeHead[axis] + newAxisValue;
 
                 // If the movement would cause a game over, set that property and do not perform the move
                 if (isGameOver(newSnakeHead)) {
                     gameOver = true;
                 } else { // otherwise, perform the movement
-                    // Set this piece's direction to the direction of movement during creation. Used to create tail pieces on food consumption
-                    newSnakeHead.direction = direction;
-
                     // Add the new head to simulate movement
                     snake.unshift(newSnakeHead);
 
@@ -407,8 +397,10 @@
                 }
             }
 
-            /** Add a direction to the direction queue. Queue is used to prevent multiple direction changes in a single cycle from breaking the game. */
-            function addToDirectionQueue(direction) {
+            /** Add a direction to the direction queue. Queue is used to prevent multiple directions in a single cycle from breaking the game.  
+            * @param {string} direction - direction to add to the queue
+            */
+            function addDirection(direction) {
                 directionQueue.push(direction);
             }
 
@@ -423,14 +415,14 @@
             }
 
             /** Draws a given snake on the canvas, using each object in the snake array's x and y coordinates */
-            function drawSnake(snake) {
+            function drawSnake() {
                 mainCanvasContext.fillStyle = snakeColor;
                 snake.map((snakePiece, index) => drawPiece(snakePiece));
             }
 
             /** Given a piece of a snake, draw it on the canvas. Assumes the fillStyle color has already been set. */
             function drawPiece(snakePiece) {
-                mainCanvasContext.fillRect(snakePiece.x, snakePiece.y, snakeSideLength, snakeSideLength);
+                mainCanvasContext.fillRect(snakePiece.x, snakePiece.y, pieceLength, pieceLength);
             }
         </script>
     </body>
