@@ -111,19 +111,19 @@
 
             // These properties don't change during runtime and can be set as "const"
             const gameSpeed = 15; // indicates how fast the snake moves across the canvas, raise to increase speed
-            const gameOverColor = "red"; // color to draw the snake as if the game is over
+            const gameOverColor = "red"; // color to draw the snake if a game over is encountered
             const snakeSideLength = 15;
             const pointsPerFood = 10; // how many points you earn for each food item consumed
             const canvasColor = "#2f2f2f";
             const foodColor = "#c614d0";
-            const directions = {up: "up", right: "right", down: "down", left: "left"}; // all available directions the snake can go
+            const directions = {up: "up", right: "right", down: "down", left: "left"}; 
 
             // These properties change during runtime, and have their values reinitialized in the reset() function
             let snakeColor = "#0ba99f";
-            let currentFood; // the current food piece on the canvas
+            let currentFood;
             let direction = directions.down; // the current direction of the snake
             let skipNextPopCycle = false; // if true, food has just been consumed, and the next "pop" in movement (removing the tail) should be skipped
-            let snake = [{x: 240, y: 240, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
+            let snake = [{x: 240, y: 240, direction: directions.down}]; // the actual snake - contains all snake pieces. first piece, snake[0], is the current head
             let gameOver = false; // if true, the user has lost - either by colliding with the edge or its own tail
             let directionQueue = []; // queue for direction changes to only allow one direction shift per game cycle
             let currentScore = 0;
@@ -131,7 +131,7 @@
             // These properties change, but aren't reinitialized in reset() due to them persisting between games
             let highScore = 0;
 
-            // Add a keydown listener for arrow keys, allowing for the snake to change direction when the user uses the arrow keys
+            // Add a keydown listener for arrow keys and other action keys
             document.onkeydown = function(e) {
                 switch (e.keyCode) {
                     // Enter key - restarts the game
@@ -172,12 +172,13 @@
             /** Sets properties that can change over the course of the game to their initial values */
             function reset() {
                 snakeColor = "#0ba99f";
-                currentFood = undefined; // the current food piece on the canvas
-                snake = [{x: 240, y: 240, direction: directions.down}]; // tracks the x and y position of each snake piece, as well as the direction it's travelling
-                gameOver = false; // if true, the user has lost - either by colliding with the edge or its own tail
-                directionQueue = []; // queue for direction changes to only allow one direction shift per game cycle
+                currentFood = undefined; 
+                snake = [{x: 240, y: 240, direction: directions.down}]; 
+                gameOver = false;
+                directionQueue = []; 
+                skipNextPopCycle = false;
                 currentScore = 0;
-                updateCurrentScore(currentScore);
+                updateCurrentScore(currentScore); // whenever reset is called, update the DOM current score element to ensure it displays the initial value
             }
 
             /** Resets game values and calls play(). Triggered by the user clicking the Play button. */
@@ -198,7 +199,7 @@
             // Main game function. Calls itself recursively to run the game.
             function play() {
                 moveSnake(snake);
-                clear(); // clear the previous game state
+                clear(); 
                 // if the game isn't over, perform game actions like moving the snake and checking for food
                 if (!gameOver) {
                     checkDirection();
@@ -210,7 +211,7 @@
                         updateHighScore(currentScore);
                     }                    
                 }
-                setTimeout(() => !gameOver ? play() : '', 60); // basically a tick(), redrawing the game canvas every X seconds. will not redraw if the game is over
+                setTimeout(() => !gameOver ? play() : '', 60); // basically a tick(), redrawing the game canvas every X milliseconds. will not redraw if the game is over
             }
 
             /** Given a score, update the highScore and update the DOM element displaying it */
@@ -226,7 +227,7 @@
             }
 
             /** Returns true if the game is over, because the user hit a side or a snake tail piece.
-            *   @param {Object} snakeHead - a piece of a snake, usually the head, to check if it causes a game over. 
+            *   @param {Object} snakeHead - a piece of a snake, usually the head or a potential new head, to check if it causes a game over due to its position.
             */
             function isGameOver(snakeHead) {
                 // Check for any movement-based game over states. If any are found, log the state of the loss.
@@ -253,14 +254,15 @@
             /** Performs snake-food related actions, like building, drawing, or consuming it */
             function checkFood() {
                 // First, check if the snake's head overlaps food - if so, consume it
-                currentFood && doPiecesOverlap(snake[0], currentFood) ? consumeFood() : "";
+                if (currentFood && doPiecesOverlap(snake[0], currentFood)) {
+                    consumeFood();
+                }
 
                 // If food doesn't exist, either from initial state or consumption, build it again
                 if (!currentFood) {
                     currentFood = buildFood();
                 }
 
-                // Draw the current food object
                 drawFood();
             }
 
@@ -270,7 +272,7 @@
                     // Clear the current food and determine the last snake piece's position
                     currentFood = undefined;
 
-                    // Update the current score
+                    // Consuming food adds to the current score 
                     updateCurrentScore(currentScore + pointsPerFood);
 
                     // Indicate that the next "pop" cycle of movement (removing the tail and adding a head) should be skipped, adding a head without removing a tail
@@ -286,7 +288,7 @@
 
             /** Returns a new food object that doesn't overlap the snake. */
             function buildFood() {
-                // Generate a random piece that does not overlap the snake
+                // Generate and return a piece of random coordinates that doesn't overlap the current snake
                 let food;
                 let doesOverlap = true;
                 while(doesOverlap) {
@@ -294,7 +296,6 @@
                     doesOverlap = doesPieceOverlapWithSnake(food, true);
                 }
 
-                // Once reached, we've generated a food piece that doesn't overlap the snake. Return it.
                 return food;
             }
 
@@ -303,15 +304,15 @@
                 // Cache where the piece ends on both axis so it doesn't have to be calculated on each iteration
                 let pieceXEnd = piece.x + snakeSideLength;
                 let pieceYEnd = piece.y + snakeSideLength;
-                // Check if the piece overlaps with any snake piece
+
                 let doesOverlap = false;
                 snake.find((snakePiece, index) => {
                     // Only run for index === 0 if checkHead === true
                     if (checkHead || index !== 0) {
                         doesOverlap = doesOverlap || doPiecesOverlap(piece, snakePiece);
-                        return doesOverlap; // terminate the loop if we've found a snake piece the given piece overlaps
+                        return doesOverlap; // terminate the loop if there's overlap - we only need to find one overlap
                     } else {
-                        return false; // if we're here, that means we're on the head when checkHead === false. return false to continue the loop.
+                        return false; 
                     }
                 });
                 return doesOverlap;
@@ -325,26 +326,25 @@
                 };
             }
 
-            /** Will return a random number between 0 and the canvas's playable area, that can be multiplied by the snake's side length to ensure a "grid" like flow.
-            Canvas should be square or this quick function won't work */
+            /** Will return a random number between 0 and the canvas's playable area, that can be multiplied by the snake's side length to ensure a "grid" like flow. Canvas should be square or this quick function won't work */
             function getRandomCoordinate() {
                 let canvasSide = mainCanvas.height;
                 let maxValue = Math.floor(canvasSide / snakeSideLength);
-                // One is the minimum - ensuring food is never added directly on the edge for a slightly more fair experience
+                // Returns a random integer between 1 and the max value
                 let randomInteger = Math.floor(Math.random() * (maxValue - 1) + 1); 
-                return randomInteger * snakeSideLength;
+                return randomInteger * snakeSideLength; // return the random integer multiplied by the snake side length, returning a random coordinate that always lines up with other snake pieces in the canvas
             }
 
             /** @returns {boolean} true if two snake pieces, a and b, overlap */
             function doPiecesOverlap(a, b) {
-                // Will be true if the pieces have no overlap at all, because of the following conditions are all false
+                // Will be true if the pieces have no overlap at all, because if any of the following conditions are true then at least one of a's sides are outside b's sides in a way that ensures no overlap can exist
                 let isNoOverlap = (
                     a.x >= (b.x + snakeSideLength) || // a's left (x) is to the right of b's right edge (x + length)
                     a.y >= (b.y + snakeSideLength) || // a's top (y) is below b's bottom edge (y + length)
                     (a.x + snakeSideLength) <= b.x || // a's right is to the left of b's left edge
-                    (a.y + snakeSideLength) <= b.y     // a's bottom is above b's top edge
+                    (a.y + snakeSideLength) <= b.y    // a's bottom is above b's top edge
                 );
-                return !isNoOverlap; // return the inverse so "true" will be returned if isNoOverlap = false, as that indicates there is overlap
+                return !isNoOverlap; // return the inverse so true will be returned if isNoOverlap = false, as that indicates there is overlap and the function's name implies that true should be returned if no overlap
             }
 
             /** Clears the game canvas by filling it with the background color */
