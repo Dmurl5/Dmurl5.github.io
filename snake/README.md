@@ -16,14 +16,14 @@
 ### Snake Game Overview
 
 1. To practice using the Canvas API, I built the classic "Snake" game in JavaScript/HTML/CSS 
-2. No libraries, and around 440 lines of total code including HTML and CSS for the page. The unminified version comes out at 21.5 KB, while the minified version (white spaces, line breaks, and comments removed) clocks it at only 7.45 KB - pretty good for a fully functioning game!
+2. No libraries, and around 430 lines of total code including HTML and CSS for the page. The unminified version comes out at 21.3 KB, while the minified version (white spaces, line breaks, and comments removed) clocks it at only 7.15 KB - pretty good for a fully functioning game!
 3. For the uninitiated: you control a "snake" that eats food pieces to both grow in size and add to the score for the game.
 4. the .html file includes: the HTML document, associated CSS, all javascript to run the game, basic state management ("initial" state vs. "in game" state vs. "game over" state, plus a current and high score system), game control properties like speed and color, and more.
 
 ### Quick Demo and Code Overview
 
 1. Properties overview (global variables, canvas definition)
-2. Starting the game (setupAndPlay(), play())
+2. Starting the game and game cycles (setup(), tick(), play())
 3. Drawing the snake (drawSnake(), drawPiece())
 4. Moving the snake (moveSnake())
 5. Game over state and collision detection (moveSnake() calling isGameOver(), doPiecesOverlap())
