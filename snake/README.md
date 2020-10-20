@@ -20,9 +20,7 @@
 3. For the uninitiated: you control a "snake" that eats food pieces to both grow in size and add to the score for the game.
 4. the .html file includes: the HTML document, associated CSS, all javascript to run the game, basic state management ("initial" state vs. "in game" state vs. "game over" state, plus a current and high score system), game control properties like speed and color, and more.
 
-### Quick Demo
-
-### Code Overview
+### Quick Demo and Code Overview
 
 1. Properties overview (global variables, canvas definition)
 2. Starting the game (setupAndPlay(), play())
