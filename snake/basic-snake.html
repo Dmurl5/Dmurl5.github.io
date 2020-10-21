@@ -95,15 +95,15 @@
             <h4>Curent Score: <span class="score-display" id="currentScore">0</span></h4>
             <h4>High Score: <span class="score-display" id="highScore">0</span></h4>
             <div class="arrows">
-                <div class="top"><span></span><span onclick="addDirection(directions.up)" class="arrow">&#8593;</span><span></span></div>
-                <div class="middle"><span onclick="addDirection(directions.left)" class="arrow">&#8592;</span><span></span><span onclick="addDirection(directions.right)" class="arrow">&#8594;</span></div>
-                <div class="bottom"><span></span><span onclick="addDirection(directions.down)" class="arrow">&#8595;</span><span></span></div>
+                <div class="top"><span></span><span onclick="addDirection(directions.up, event)" class="arrow">&#8593;</span><span></span></div>
+                <div class="middle"><span onclick="addDirection(directions.left, event)" class="arrow">&#8592;</span><span></span><span onclick="addDirection(directions.right, event)" class="arrow">&#8594;</span></div>
+                <div class="bottom"><span></span><span onclick="addDirection(directions.down, event)" class="arrow">&#8595;</span><span></span></div>
             </div>
         </div>
 
         <script>
             /** TODO's
-                    (1) Make speed configurable - original 50 is too high for normal players
+                    (1) Make speed configurable - default 50 is too high for normal players
                     (2) Make styles of canvas, wrapping and info elements, and in-game elements responsive to mobile */
 
 
@@ -128,6 +128,7 @@
             let skipNextPopCycle; // if true, food has just been consumed, and the next "pop" in movement (removing the tail) should be skipped
             let snake; // the actual snake - contains all snake pieces. first piece, snake[0], is the current head
             let gameOver; // if true, the user has lost - either by colliding with the edge or its own tail
+            let gameOn; // if true, the game is being played and is not over - allows things like the user's arrow keys to interact with the game
             let directionQueue; // queue for direction changes to only allow one direction shift per game cycle
             let currentScore; // the current score of the running game
 
@@ -139,21 +140,22 @@
                 switch (e.keyCode) {
                     // Enter key - restarts the game
                     case 13:
+                        e.preventDefault();
                         setup();
                         break;
 
                     // Arrow key cases - controls the snake in the game
                     case 37: // left arrow
-                        addDirection(directions.left);
+                        addDirection(directions.left, e);
                         break;
                     case 38: // up arrow
-                        addDirection(directions.up);
+                        addDirection(directions.up, e);
                         break;
                     case 39: // right arrow
-                        addDirection(directions.right);
+                        addDirection(directions.right, e);
                         break;
                     case 40: // down arrow
-                        addDirection(directions.down);
+                        addDirection(directions.down, e);
                         break;
                 }
             };
@@ -164,6 +166,7 @@
                 currentFood = undefined; 
                 snake = [{x: 240, y: 240}]; 
                 gameOver = false;
+                gameOn = true;
                 directionQueue = []; 
                 direction = directions.down;
                 skipNextPopCycle = false;
@@ -181,7 +184,7 @@
 
             /** Calls play() if the game is not over. Called from play() and setup(). Creates a game cycle that runs every X milliseconds */
             function tick() {
-                !gameOver ? setTimeout(play, 60) : "";
+                !gameOver ? setTimeout(play, 50) : "";
             }
 
             // Main game function. Calls itself recursively to run the game.
@@ -357,8 +360,9 @@
                 let newAxisValue = isNegative ? -pieceLength : pieceLength;
                 newSnakeHead[axis] = newSnakeHead[axis] + newAxisValue;
 
-                // If the movement would cause a game over, set that property and do not perform the move
+                // If the movement would cause a game over, set the related game properties and do not perform the move
                 if (isGameOver(newSnakeHead)) {
+                    gameOn = false;
                     gameOver = true;
                 } else { // otherwise, perform the movement
                     // Add the new head to simulate movement
@@ -399,9 +403,11 @@
 
             /** Add a direction to the direction queue. Queue is used to prevent multiple directions in a single cycle from breaking the game.  
             * @param {string} direction - direction to add to the queue
+            * @param {*} event - Optional - a JavaScript event, like keydown or click. if passed, will prevent default. useful for preventing normal keyboard interactions when playing the game
             */
-            function addDirection(direction) {
-                directionQueue.push(direction);
+            function addDirection(direction, event) {
+                event && event.preventDefault ? event.preventDefault() : "";
+                gameOn ? directionQueue.push(direction) : ""; // only add to the direction queue if a game is actively being played
             }
 
             /** @returns {boolean} true if a given direction is on the X axis */
