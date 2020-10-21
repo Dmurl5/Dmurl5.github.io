@@ -6,6 +6,7 @@
 2. Allows for drawing 2D and 3D objects quickly in the browser without the need for Flash or other libraries
 3. Has built in functions for drawing text, shapes, defining colors, et cetera
 4. Has a ton of advanced features that we won't get into today.
+5. Cool 3D (WebGL) example: https://webglfundamentals.org/webgl/background.html 
 
 ### Why is it important?
 
