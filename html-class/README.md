@@ -2,7 +2,7 @@
 
 This README contains all points to go through during the brief HTML and CSS overview
 
-We'll walk through these things in an .html file and in the Kraken visual editor UI for comparison's sake.
+We'll walk through these things in an .html file and in the visual editor for comparison's sake.
 
 ### Basic CSS, Specificity, and Selectors
 
